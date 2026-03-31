@@ -1,22 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { adminAPI } from '../../services/api';
 
 const Logs = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('logs');
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadLogs();
+  }, []);
+
+  const loadLogs = async () => {
+    try {
+      const response = await adminAPI.getActivityLogs();
+      setLogs(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to load logs:', error);
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => { logout(); navigate('/login'); };
   const handleNavigation = (tab, route) => { setActiveTab(tab); if(route) navigate(route); };
-
-  const mockLogs = [
-    { log_id: 1, action: 'LOGIN', user_name: 'Student 1', details: 'User logged in successfully', created_at: new Date().toISOString() },
-    { log_id: 2, action: 'ATTENDANCE_MARKED', user_name: 'Dr. Smith', details: 'Marked attendance for CSE101', created_at: new Date().toISOString() },
-    { log_id: 3, action: 'ASSIGNMENT_CREATED', user_name: 'Dr. Johnson', details: 'Created assignment for DBMS', created_at: new Date().toISOString() },
-    { log_id: 4, action: 'MATERIAL_UPLOADED', user_name: 'Dr. Williams', details: 'Uploaded lecture notes', created_at: new Date().toISOString() },
-    { log_id: 5, action: 'USER_ADDED', user_name: 'Admin', details: 'Added new student to CSE department', created_at: new Date().toISOString() },
-  ];
 
   return (
     <div className="app-container">
@@ -48,14 +59,20 @@ const Logs = () => {
                 </tr>
               </thead>
               <tbody>
-                {mockLogs.map((log) => (
-                  <tr key={log.log_id}>
-                    <td><span className="badge badge-info">{log.action.replace('_', ' ')}</span></td>
-                    <td>{log.user_name}</td>
-                    <td>{log.details}</td>
-                    <td>{new Date(log.created_at).toLocaleString()}</td>
-                  </tr>
-                ))}
+                {loading ? (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem' }}>Loading...</td></tr>
+                ) : logs.length > 0 ? (
+                  logs.map((log) => (
+                    <tr key={log.log_id}>
+                      <td><span className="badge badge-info">{(log.action || '').replace(/_/g, ' ')}</span></td>
+                      <td>{log.user_name || '—'}</td>
+                      <td>{log.details || '—'}</td>
+                      <td>{new Date(log.created_at).toLocaleString()}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>No activity logs yet</td></tr>
+                )}
               </tbody>
             </table>
           </div>

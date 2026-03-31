@@ -1,4 +1,4 @@
-const { query, queryOne } = require('../config/database');
+const { query, queryOne, pool } = require('../config/database');
 
 // Get student dashboard data
 exports.getDashboard = async (req, res) => {
@@ -19,10 +19,10 @@ exports.getDashboard = async (req, res) => {
 
     // Get attendance percentage
     const attendanceData = await query(
-      `SELECT s.subject_name, 
+      `SELECT s.subject_id, s.subject_name, 
               COUNT(CASE WHEN a.status IN ('present', 'late') THEN 1 END) as present_count,
               COUNT(*) as total_count,
-              ROUND((COUNT(CASE WHEN a.status IN ('present', 'late') THEN 1 END) * 100.0 / COUNT(*)), 2) as percentage
+              ROUND((COUNT(CASE WHEN a.status IN ('present', 'late') THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)), 2) as percentage
        FROM attendance a
        JOIN subjects s ON a.subject_id = s.subject_id
        WHERE a.student_id = ?
@@ -30,19 +30,21 @@ exports.getDashboard = async (req, res) => {
       [studentId]
     );
 
-    // Get upcoming assignments
+    // Get upcoming assignments (only for subjects the student is enrolled in)
     const assignments = await query(
       `SELECT a.assignment_id, a.title, a.description, a.deadline, a.total_marks,
-              s.subject_name, f.name as faculty_name,
+              s.subject_name, u.name as faculty_name,
               CASE WHEN sub.submission_id IS NOT NULL THEN true ELSE false END as is_submitted
        FROM assignments a
        JOIN subjects s ON a.subject_id = s.subject_id
        JOIN faculty f ON a.faculty_id = f.faculty_id
+       JOIN users u ON f.user_id = u.user_id
+       JOIN subject_students ss ON ss.subject_id = a.subject_id AND ss.student_id = ?
        LEFT JOIN submissions sub ON a.assignment_id = sub.assignment_id AND sub.student_id = ?
        WHERE a.deadline > NOW()
        ORDER BY a.deadline ASC
        LIMIT 5`,
-      [studentId]
+      [studentId, studentId]
     );
 
     // Get recent announcements
@@ -166,7 +168,7 @@ exports.getTimetable = async (req, res) => {
   }
 };
 
-// Get all assignments
+// Get all assignments (only for subjects the student is enrolled in)
 exports.getAssignments = async (req, res) => {
   try {
     const studentId = req.user.studentId;
@@ -175,14 +177,16 @@ exports.getAssignments = async (req, res) => {
       `SELECT a.assignment_id, a.title, a.description, a.instructions, a.deadline, 
               a.total_marks, a.file_path, a.created_at,
               s.subject_name, s.subject_code, u.name as faculty_name,
-              sub.submission_id, sub.submitted_at, sub.grade, sub.feedback, sub.status as submission_status
+              sub.submission_id, sub.submitted_at, sub.grade, sub.feedback, sub.status as submission_status,
+              CASE WHEN sub.submission_id IS NOT NULL THEN true ELSE false END as is_submitted
        FROM assignments a
        JOIN subjects s ON a.subject_id = s.subject_id
        JOIN faculty f ON a.faculty_id = f.faculty_id
        JOIN users u ON f.user_id = u.user_id
+       JOIN subject_students ss ON ss.subject_id = a.subject_id AND ss.student_id = ?
        LEFT JOIN submissions sub ON a.assignment_id = sub.assignment_id AND sub.student_id = ?
        ORDER BY a.deadline DESC`,
-      [studentId]
+      [studentId, studentId]
     );
 
     res.json({
@@ -204,7 +208,7 @@ exports.getAssignments = async (req, res) => {
 exports.submitAssignment = async (req, res) => {
   try {
     const studentId = req.user.studentId;
-    const { assignmentId } = req.body;
+    const assignmentId = req.params.assignmentId || req.body.assignmentId;
     const file = req.file;
 
     if (!file) {
@@ -227,17 +231,18 @@ exports.submitAssignment = async (req, res) => {
       });
     }
 
-    // Insert submission
-    const [result] = await query(
+    const submissionPath = '/uploads/submissions/' + file.filename;
+
+    const [insertResult] = await pool.execute(
       `INSERT INTO submissions (assignment_id, student_id, file_path, original_filename, status)
        VALUES (?, ?, ?, ?, 'submitted')`,
-      [assignmentId, studentId, file.path, file.originalname]
+      [assignmentId, studentId, submissionPath, file.originalname]
     );
 
     res.status(201).json({
       success: true,
       message: 'Assignment submitted successfully',
-      data: { submissionId: result.insertId }
+      data: { submissionId: insertResult.insertId }
     });
 
   } catch (error) {
@@ -250,19 +255,20 @@ exports.submitAssignment = async (req, res) => {
   }
 };
 
-// Get study materials
+// Get study materials (only for subjects the student is enrolled in)
 exports.getMaterials = async (req, res) => {
   try {
     const studentId = req.user.studentId;
 
     const materials = await query(
-      `SELECT sm.material_id, sm.title, sm.description, sm.file_path, sm.original_filename,
-              sm.file_type, sm.uploaded_at, sm.download_count,
+      `SELECT sm.material_id, sm.title, sm.description, sm.file_path, sm.original_filename as file_name,
+              sm.file_type, sm.uploaded_at as upload_date, sm.download_count,
               s.subject_name, s.subject_code, u.name as faculty_name
        FROM study_materials sm
        JOIN subjects s ON sm.subject_id = s.subject_id
        JOIN faculty f ON sm.faculty_id = f.faculty_id
        JOIN users u ON f.user_id = u.user_id
+       JOIN subject_students ss ON sm.subject_id = ss.subject_id AND ss.student_id = ?
        ORDER BY sm.uploaded_at DESC`,
       [studentId]
     );

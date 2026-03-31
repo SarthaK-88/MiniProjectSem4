@@ -22,12 +22,13 @@ const Assignments = () => {
   const loadAssignments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/assignments', {
+      const response = await axios.get('http://localhost:5000/api/student/assignments', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      setAssignments(response.data.data || []);
+      const list = response.data.data || [];
+      setAssignments(list.map(a => ({ ...a, is_submitted: !!(a.submission_id || a.is_submitted) })));
     } catch (error) {
       console.error('Failed to load assignments:', error);
       alert('Failed to load assignments: ' + (error.response?.data?.message || error.message));
@@ -80,7 +81,7 @@ const Assignments = () => {
       formData.append('file', submissionFile);
 
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/assignments/submit', formData, {
+      await axios.post(`http://localhost:5000/api/student/submit/${selectedAssignment.assignment_id}`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'

@@ -2,18 +2,19 @@ const { query, pool } = require('../config/database');
 
 exports.sendMessage = async (req, res) => {
   try {
-    const { receiverId, content, groupId } = req.body;
+    const receiverId = req.body.receiver_id || req.body.receiverId;
+    const content = req.body.message || req.body.content;
     const senderId = req.user.userId;
 
     if (!content && !req.file) {
       return res.status(400).json({ success: false, message: 'Message content or file is required' });
     }
 
-    const fileUrl = req.file ? `/uploads/messages/${req.file.filename}` : null;
+    const filePath = req.file ? `/uploads/messages/${req.file.filename}` : null;
 
     const [result] = await pool.execute(
-      `INSERT INTO messages (sender_id, receiver_id, group_id, content, file_url) VALUES (?, ?, ?, ?, ?)`,
-      [senderId, receiverId || null, groupId || null, content || null, fileUrl]
+      `INSERT INTO messages (sender_id, receiver_id, group_id, message_text, file_path) VALUES (?, ?, ?, ?, ?)`,
+      [senderId, receiverId || null, null, content || null, filePath]
     );
 
     res.json({ success: true, message: 'Message sent', data: { id: result.insertId } });
@@ -29,12 +30,13 @@ exports.getMessages = async (req, res) => {
     const currentUserId = req.user.userId;
 
     const messages = await query(
-      `SELECT m.*, s.name as sender_name, r.name as receiver_name 
+      `SELECT m.message_id, m.sender_id, m.receiver_id, m.message_text as content, m.sent_at, m.message_type,
+              s.name as sender_name, r.name as receiver_name 
        FROM messages m 
        JOIN users s ON m.sender_id = s.user_id 
        LEFT JOIN users r ON m.receiver_id = r.user_id 
        WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?) 
-       ORDER BY m.sent_date ASC`,
+       ORDER BY m.sent_at ASC`,
       [currentUserId, userId, userId, currentUserId]
     );
 
@@ -52,20 +54,48 @@ exports.getConversations = async (req, res) => {
     const conversations = await query(
       `SELECT DISTINCT 
         CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END as other_user_id,
-        u.name as other_user_name,
-        (SELECT content FROM messages WHERE sender_id = ? AND receiver_id = other_user_id OR sender_id = other_user_id AND receiver_id = ? ORDER BY sent_date DESC LIMIT 1) as last_message,
-        (SELECT sent_date FROM messages WHERE sender_id = ? AND receiver_id = other_user_id OR sender_id = other_user_id AND receiver_id = ? ORDER BY sent_date DESC LIMIT 1) as last_message_date
+        u.name as other_user_name
        FROM messages m
        JOIN users u ON (CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END) = u.user_id
-       WHERE m.sender_id = ? OR m.receiver_id = ?
-       GROUP BY other_user_id
-       ORDER BY last_message_date DESC`,
-      [userId, userId, userId, userId, userId, userId, userId, userId]
+       WHERE (m.sender_id = ? OR m.receiver_id = ?) AND u.user_id != ?
+       GROUP BY (CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END), u.name
+       ORDER BY u.name`,
+      [userId, userId, userId, userId, userId]
     );
 
     res.json({ success: true, data: conversations });
   } catch (error) {
     console.error('Error fetching conversations:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch conversations' });
+  }
+};
+
+// Get list of users the current user can chat with (faculty + students, excluding self)
+exports.getChatUsers = async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+    const role = req.user.role;
+
+    let users;
+    if (role === 'student') {
+      users = await query(
+        `SELECT u.user_id, u.name, u.role FROM users u
+         WHERE u.role IN ('faculty', 'student') AND u.user_id != ? AND u.is_active = 1
+         ORDER BY u.role DESC, u.name ASC`,
+        [currentUserId]
+      );
+    } else {
+      users = await query(
+        `SELECT u.user_id, u.name, u.role FROM users u
+         WHERE u.role IN ('faculty', 'student') AND u.user_id != ? AND u.is_active = 1
+         ORDER BY u.role DESC, u.name ASC`,
+        [currentUserId]
+      );
+    }
+
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error('Error fetching chat users:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch users' });
   }
 };

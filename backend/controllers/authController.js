@@ -196,7 +196,21 @@ exports.login = async (req, res) => {
 
     // Verify password
     console.log('Verifying password...');
-    const isValidPassword = await bcrypt.compare(password, user.password);
+
+    // Temporary compatibility for demo data:
+    // The seeded users in dummy_data.sql use a placeholder bcrypt string that
+    // doesn't correspond to any real password. For those accounts, accept the
+    // plain text password "password" so demo logins work out of the box.
+    const DUMMY_PLACEHOLDER_HASH =
+      '$2a$10$rQZ9vXJXL5K5Z5Z5Z5Z5ZeR5h5N5N5N5N5N5N5N5N5N5N5N5N5N5N';
+
+    let isValidPassword;
+    if (user.password === DUMMY_PLACEHOLDER_HASH) {
+      isValidPassword = password === 'password';
+    } else {
+      isValidPassword = await bcrypt.compare(password, user.password);
+    }
+
     console.log('Password valid:', isValidPassword);
 
     if (!isValidPassword) {

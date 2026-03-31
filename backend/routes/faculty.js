@@ -19,6 +19,8 @@ router.get('/students', facultyController.getStudents);
 
 // Assignments
 router.get('/assignments', facultyController.getAssignments);
+router.get('/materials', facultyController.getMaterials);
+router.get('/subjects', facultyController.getSubjects);
 router.post('/assignment', upload.single('file'), handleMulterError, facultyController.createAssignment);
 router.get('/submissions/:assignmentId', facultyController.getSubmissions);
 router.put('/grade', facultyController.gradeSubmission);

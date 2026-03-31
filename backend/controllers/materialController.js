@@ -9,11 +9,11 @@ exports.uploadMaterial = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Title, subject and file are required' });
     }
 
-    const fileUrl = `/uploads/materials/${req.file.filename}`;
+    const filePath = `/uploads/materials/${req.file.filename}`;
 
     const [result] = await pool.execute(
-      `INSERT INTO study_materials (faculty_id, subject_id, title, description, file_url) VALUES (?, ?, ?, ?, ?)`,
-      [facultyId, subjectId, title, description, fileUrl]
+      `INSERT INTO study_materials (faculty_id, subject_id, title, description, file_path) VALUES (?, ?, ?, ?, ?)`,
+      [facultyId, subjectId, title, description, filePath]
     );
 
     res.status(201).json({ success: true, message: 'Material uploaded', data: { id: result.insertId, fileUrl } });
@@ -31,7 +31,7 @@ exports.getMaterialsBySubject = async (req, res) => {
       `SELECT m.*, f.name as faculty_name FROM study_materials m 
        JOIN faculty fac ON m.faculty_id = fac.faculty_id 
        JOIN users f ON fac.user_id = f.user_id 
-       WHERE m.subject_id = ? ORDER BY m.uploaded_date DESC`,
+       WHERE m.subject_id = ? ORDER BY m.uploaded_at DESC`,
       [subjectId]
     );
 

@@ -1,12 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { adminAPI } from '../../services/api';
 
 const Subjects = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('subjects');
   const [showModal, setShowModal] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadSubjects();
+  }, []);
+
+  const loadSubjects = async () => {
+    try {
+      const response = await adminAPI.getSubjects();
+      setSubjects(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to load subjects:', error);
+      setSubjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => { logout(); navigate('/login'); };
   const handleNavigation = (tab, route) => { setActiveTab(tab); if(route) navigate(route); };
@@ -35,11 +54,24 @@ const Subjects = () => {
               <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Add Subject</button>
             </div>
             <table className="table">
-              <thead><tr><th>Code</th><th>Name</th><th>Department</th><th>Credits</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Code</th><th>Name</th><th>Department</th><th>Semester</th><th>Credits</th><th>Actions</th></tr></thead>
               <tbody>
-                <tr><td>CSE101</td><td>Data Structures</td><td>CSE</td><td>4</td><td><button className="btn btn-sm btn-outline">Edit</button></td></tr>
-                <tr><td>CSE202</td><td>DBMS</td><td>CSE</td><td>4</td><td><button className="btn btn-sm btn-outline">Edit</button></td></tr>
-                <tr><td>ME301</td><td>Thermodynamics</td><td>ME</td><td>3</td><td><button className="btn btn-sm btn-outline">Edit</button></td></tr>
+                {loading ? (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>Loading...</td></tr>
+                ) : subjects.length > 0 ? (
+                  subjects.map((s) => (
+                    <tr key={s.subject_id}>
+                      <td>{s.subject_code}</td>
+                      <td>{s.subject_name}</td>
+                      <td>{s.dept_name}</td>
+                      <td>{s.semester}</td>
+                      <td>{s.credits}</td>
+                      <td><button className="btn btn-sm btn-outline">Edit</button></td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>No subjects found</td></tr>
+                )}
               </tbody>
             </table>
           </div>

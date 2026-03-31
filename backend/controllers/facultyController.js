@@ -1,4 +1,4 @@
-const { query, queryOne } = require('../config/database');
+const { query, queryOne, pool } = require('../config/database');
 
 // Get faculty dashboard data
 exports.getDashboard = async (req, res) => {
@@ -56,7 +56,7 @@ exports.getDashboard = async (req, res) => {
       success: true,
       data: {
         classes,
-        pendingSubmissions: pendingSubmissions[0].count,
+        pendingSubmissions: pendingSubmissions[0]?.count ?? 0,
         attendanceStats,
         announcements
       }
@@ -157,9 +157,11 @@ exports.getStudents = async (req, res) => {
 exports.createAssignment = async (req, res) => {
   try {
     const facultyId = req.user.facultyId;
-    const { subjectId, title, description, instructions, deadline, totalMarks } = req.body;
+    const { subjectId, subject_id, title, description, instructions, deadline, totalMarks, total_marks } = req.body;
+    const subId = subjectId || subject_id;
+    const total = totalMarks ?? total_marks;
 
-    if (!subjectId || !title || !description || !deadline) {
+    if (!subId || !title || !description || !deadline) {
       return res.status(400).json({
         success: false,
         message: 'Subject ID, title, description, and deadline are required'
@@ -167,18 +169,18 @@ exports.createAssignment = async (req, res) => {
     }
 
     const file = req.file;
-    const filePath = file ? file.path : null;
+    const filePath = file ? ('/uploads/' + (file.fieldname === 'assignment' ? 'assignments' : 'submissions') + '/' + file.filename) : null;
 
-    const [result] = await query(
+    const [insertResult] = await pool.execute(
       `INSERT INTO assignments (subject_id, faculty_id, title, description, instructions, deadline, total_marks, file_path)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [subjectId, facultyId, title, description, instructions, deadline, totalMarks || 100, filePath]
+      [subId, facultyId, title, description, instructions, deadline, total || 100, filePath]
     );
 
     res.status(201).json({
       success: true,
       message: 'Assignment created successfully',
-      data: { assignmentId: result.insertId }
+      data: { assignmentId: insertResult.insertId }
     });
 
   } catch (error) {
@@ -200,7 +202,7 @@ exports.getAssignments = async (req, res) => {
       `SELECT a.assignment_id, a.title, a.description, a.deadline, a.total_marks,
               a.created_at, s.subject_name, s.subject_code,
               COUNT(sub.submission_id) as submission_count,
-              SUM(CASE WHEN sub.status = 'graded' THEN 1 ELSE 0 END) as graded_count
+              SUM(CASE WHEN sub.grade IS NOT NULL THEN 1 ELSE 0 END) as graded_count
        FROM assignments a
        JOIN subjects s ON a.subject_id = s.subject_id
        LEFT JOIN submissions sub ON a.assignment_id = sub.assignment_id
@@ -292,6 +294,64 @@ exports.gradeSubmission = async (req, res) => {
   }
 };
 
+// Get study materials uploaded by faculty
+exports.getMaterials = async (req, res) => {
+  try {
+    const facultyId = req.user.facultyId;
+
+    const materials = await query(
+      `SELECT sm.material_id, sm.title, sm.description, sm.file_path, sm.original_filename,
+              sm.file_type, sm.uploaded_at as upload_date,
+              s.subject_name, s.subject_code
+       FROM study_materials sm
+       JOIN subjects s ON sm.subject_id = s.subject_id
+       WHERE sm.faculty_id = ?
+       ORDER BY sm.uploaded_at DESC`,
+      [facultyId]
+    );
+
+    res.json({
+      success: true,
+      data: materials
+    });
+  } catch (error) {
+    console.error('Get materials error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch study materials',
+      error: error.message
+    });
+  }
+};
+
+// Get subjects taught by this faculty
+exports.getSubjects = async (req, res) => {
+  try {
+    const facultyId = req.user.facultyId;
+
+    const subjects = await query(
+      `SELECT s.subject_id, s.subject_code, s.subject_name, s.semester, sf.academic_year
+       FROM subjects s
+       JOIN subject_faculty sf ON s.subject_id = sf.subject_id
+       WHERE sf.faculty_id = ?
+       ORDER BY s.semester, s.subject_code`,
+      [facultyId]
+    );
+
+    res.json({
+      success: true,
+      data: subjects
+    });
+  } catch (error) {
+    console.error('Get subjects error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch subjects',
+      error: error.message
+    });
+  }
+};
+
 // Upload study material
 exports.uploadMaterial = async (req, res) => {
   try {
@@ -306,16 +366,18 @@ exports.uploadMaterial = async (req, res) => {
       });
     }
 
-    const [result] = await query(
+    const filePath = '/uploads/materials/' + file.filename;
+
+    const [insertResult] = await pool.execute(
       `INSERT INTO study_materials (subject_id, faculty_id, title, description, file_path, original_filename, file_type)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [subjectId, facultyId, title, description, file.path, file.originalname, file.mimetype]
+      [subjectId, facultyId, title, description, filePath, file.originalname, file.mimetype]
     );
 
     res.status(201).json({
       success: true,
       message: 'Study material uploaded successfully',
-      data: { materialId: result.insertId }
+      data: { materialId: insertResult.insertId }
     });
 
   } catch (error) {

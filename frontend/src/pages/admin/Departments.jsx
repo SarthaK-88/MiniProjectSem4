@@ -1,12 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { adminAPI } from '../../services/api';
 
 const Departments = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('departments');
   const [showModal, setShowModal] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadDepartments();
+  }, []);
+
+  const loadDepartments = async () => {
+    try {
+      const response = await adminAPI.getDepartments();
+      setDepartments(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to load departments:', error);
+      setDepartments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => { logout(); navigate('/login'); };
   const handleNavigation = (tab, route) => { setActiveTab(tab); if(route) navigate(route); };
@@ -35,11 +54,22 @@ const Departments = () => {
               <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Add Department</button>
             </div>
             <table className="table">
-              <thead><tr><th>Name</th><th>Code</th><th>Head of Dept</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Code</th><th>Description</th><th>Actions</th></tr></thead>
               <tbody>
-                <tr><td>Computer Science</td><td>CSE</td><td>Dr. Smith</td><td><button className="btn btn-sm btn-outline">Edit</button></td></tr>
-                <tr><td>Mechanical Engg</td><td>ME</td><td>Dr. Johnson</td><td><button className="btn btn-sm btn-outline">Edit</button></td></tr>
-                <tr><td>Electronics</td><td>ECE</td><td>Dr. Williams</td><td><button className="btn btn-sm btn-outline">Edit</button></td></tr>
+                {loading ? (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem' }}>Loading...</td></tr>
+                ) : departments.length > 0 ? (
+                  departments.map((d) => (
+                    <tr key={d.dept_id}>
+                      <td>{d.dept_name}</td>
+                      <td>{d.dept_code}</td>
+                      <td>{d.description || '—'}</td>
+                      <td><button className="btn btn-sm btn-outline">Edit</button></td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>No departments found</td></tr>
+                )}
               </tbody>
             </table>
           </div>

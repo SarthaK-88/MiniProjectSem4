@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { facultyAPI } from '../../services/api';
 import axios from 'axios';
 
 const Materials = () => {
@@ -36,13 +37,9 @@ const Materials = () => {
 
   const loadMaterials = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/materials', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      setMaterials(response.data.data || []);
+      const response = await facultyAPI.getMaterials();
+      const list = response.data.data || [];
+      setMaterials(list.map(m => ({ ...m, upload_date: m.upload_date || m.uploaded_at })));
     } catch (error) {
       console.error('Failed to load materials:', error);
     } finally {
@@ -75,8 +72,8 @@ const Materials = () => {
       const submitData = new FormData();
       submitData.append('title', formData.title);
       submitData.append('description', formData.description);
-      submitData.append('subject_id', parseInt(formData.subject_id));
-      submitData.append('file', selectedFile);
+      submitData.append('subjectId', parseInt(formData.subject_id));
+      submitData.append('material', selectedFile);
 
       const token = localStorage.getItem('token');
       await axios.post('http://localhost:5000/api/materials', submitData, {
@@ -158,7 +155,7 @@ const Materials = () => {
                         </div>
                       </td>
                       <td>{material.subject_name}</td>
-                      <td>{new Date(material.upload_date).toLocaleDateString()}</td>
+                      <td>{new Date(material.upload_date || material.uploaded_at).toLocaleDateString()}</td>
                       <td>
                         <button className="btn btn-sm btn-outline">🗑️ Delete</button>
                       </td>

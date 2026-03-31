@@ -238,11 +238,11 @@ const Messages = () => {
                             maxWidth: '70%',
                             padding: '0.75rem 1rem',
                             borderRadius: '0.75rem',
-                            backgroundColor: msg.sender_id === user.userId ? '#3b82f6' : '#e5e7eb',
-                            color: msg.sender_id === user.userId ? 'white' : '#1f2937'
+                            backgroundColor: msg.sender_id === (user?.userId ?? user?.id) ? '#3b82f6' : '#e5e7eb',
+                            color: msg.sender_id === (user?.userId ?? user?.id) ? 'white' : '#1f2937'
                           }}
                         >
-                          <p style={{ margin: 0, wordWrap: 'break-word' }}>{msg.content}</p>
+                          <p style={{ margin: 0, wordWrap: 'break-word' }}>{msg.content || msg.message_text}</p>
                           <p style={{ fontSize: '0.75rem', margin: '0.25rem 0 0 0', opacity: 0.7 }}>
                             {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>

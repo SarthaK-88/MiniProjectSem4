@@ -25,7 +25,7 @@ exports.getDashboard = async (req, res) => {
 
     // Recent activity logs
     const recentLogs = await query(
-      `SELECT al.action, al.entity_type, al.details, al.created_at,
+      `SELECT al.log_id, al.action, al.entity_type, al.details, al.created_at,
               u.name as user_name, u.role
        FROM activity_logs al
        LEFT JOIN users u ON al.user_id = u.user_id
@@ -45,15 +45,15 @@ exports.getDashboard = async (req, res) => {
       success: true,
       data: {
         overview: {
-          totalStudents: totalStudents.count,
-          totalFaculty: totalFaculty.count,
-          totalUsers: totalUsers.count,
-          totalDepartments: totalDepartments.count
+          totalStudents: totalStudents?.count ?? 0,
+          totalFaculty: totalFaculty?.count ?? 0,
+          totalUsers: totalUsers?.count ?? 0,
+          totalDepartments: totalDepartments?.count ?? 0
         },
         todayActivity: {
-          logins: todayLogins.count,
-          attendanceMarked: todayAttendance.count,
-          submissions: todaySubmissions.count
+          logins: todayLogins?.count ?? 0,
+          attendanceMarked: todayAttendance?.count ?? 0,
+          submissions: todaySubmissions?.count ?? 0
         },
         recentLogs,
         departmentStats: deptStats
@@ -351,31 +351,51 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+// Get all departments
+exports.getDepartments = async (req, res) => {
+  try {
+    const departments = await query(
+      'SELECT dept_id, dept_name, dept_code, description, created_at FROM departments ORDER BY dept_name'
+    );
+    res.json({ success: true, data: departments });
+  } catch (error) {
+    console.error('Get departments error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch departments' });
+  }
+};
+
+// Get all subjects
+exports.getSubjects = async (req, res) => {
+  try {
+    const subjects = await query(
+      `SELECT s.subject_id, s.subject_code, s.subject_name, s.semester, s.credits, s.description,
+              d.dept_name, d.dept_code
+       FROM subjects s
+       JOIN departments d ON s.department_id = d.dept_id
+       ORDER BY d.dept_name, s.semester, s.subject_code`
+    );
+    res.json({ success: true, data: subjects });
+  } catch (error) {
+    console.error('Get subjects error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch subjects' });
+  }
+};
+
 // Get activity logs
 exports.getActivityLogs = async (req, res) => {
   try {
     const logs = await query(
-      `SELECT al.log_id, al.action, al.entity_type, al.entity_id, al.details, 
-              al.ip_address, al.created_at,
-              u.name as user_name, u.role
+      `SELECT al.log_id, al.action, al.entity_type, al.entity_id, al.details,
+              al.created_at, u.name as user_name, u.role
        FROM activity_logs al
        LEFT JOIN users u ON al.user_id = u.user_id
        ORDER BY al.created_at DESC
        LIMIT 100`
     );
-
-    res.json({
-      success: true,
-      data: logs
-    });
-
+    res.json({ success: true, data: logs });
   } catch (error) {
     console.error('Get activity logs error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch activity logs',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch activity logs' });
   }
 };
 

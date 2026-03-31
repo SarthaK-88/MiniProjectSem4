@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import axios from 'axios';
+import { facultyAPI } from '../../services/api';
 
 const Attendance = () => {
   const navigate = useNavigate();
@@ -21,25 +21,22 @@ const Attendance = () => {
 
   const loadSubjects = async () => {
     try {
-      setSubjects([
-        { subject_id: 1, subject_name: 'Data Structures' },
-        { subject_id: 2, subject_name: 'Database Management' },
-        { subject_id: 3, subject_name: 'Web Development' }
-      ]);
+      const response = await facultyAPI.getSubjects();
+      setSubjects(response.data.data || []);
     } catch (error) {
       console.error('Failed to load subjects:', error);
+      setSubjects([]);
     }
   };
 
   const loadStudents = async () => {
     try {
-      setStudents([
-        { student_id: 1, name: 'Student 1', roll_number: 'CSE2024001', present: false },
-        { student_id: 2, name: 'Student 2', roll_number: 'CSE2024002', present: false },
-        { student_id: 3, name: 'Student 3', roll_number: 'CSE2024003', present: false },
-      ]);
+      const response = await facultyAPI.getStudents();
+      const list = (response.data.data || []).map(s => ({ ...s, present: false }));
+      setStudents(list);
     } catch (error) {
       console.error('Failed to load students:', error);
+      setStudents([]);
     } finally {
       setLoading(false);
     }
@@ -74,20 +71,11 @@ const Attendance = () => {
 
       const presentStudents = students.filter(s => s.present).map(s => s.student_id);
       
-      await axios.post(
-        'http://localhost:5000/api/attendance/mark',
-        {
-          subjectId: parseInt(subjectId),
-          date: selectedDate,
-          studentIds: presentStudents
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      await facultyAPI.markAttendance({
+        subjectId: parseInt(subjectId),
+        date: selectedDate,
+        studentIds: presentStudents
+      });
       
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -151,9 +139,9 @@ const Attendance = () => {
                   style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
                 >
                   <option value="">Select Subject</option>
-                  <option value="1">Data Structures</option>
-                  <option value="2">Database Management</option>
-                  <option value="3">Web Development</option>
+                  {subjects.map((sub) => (
+                    <option key={sub.subject_id} value={sub.subject_id}>{sub.subject_name}</option>
+                  ))}
                 </select>
               </div>
             </div>

@@ -17,12 +17,17 @@ const Materials = () => {
   const loadMaterials = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/materials', {
+      const response = await axios.get('http://localhost:5000/api/student/materials', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      setMaterials(response.data.data || []);
+      const list = response.data.data || [];
+      setMaterials(list.map(m => ({
+        ...m,
+        upload_date: m.upload_date || m.uploaded_at,
+        file_name: m.file_name || m.original_filename
+      })));
     } catch (error) {
       console.error('Failed to load materials:', error);
       alert('Failed to load materials: ' + (error.response?.data?.message || error.message));

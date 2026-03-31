@@ -66,6 +66,7 @@ export const facultyAPI = {
   getDashboard: () => api.get('/faculty/dashboard'),
   markAttendance: (data) => api.post('/faculty/attendance', data),
   getStudents: () => api.get('/faculty/students'),
+  getSubjects: () => api.get('/faculty/subjects'),
   getAssignments: () => api.get('/faculty/assignments'),
   createAssignment: (formData) => 
     api.post('/faculty/assignment', formData, {
@@ -73,6 +74,7 @@ export const facultyAPI = {
     }),
   getSubmissions: (assignmentId) => api.get(`/faculty/submissions/${assignmentId}`),
   gradeSubmission: (data) => api.put('/faculty/grade', data),
+  getMaterials: () => api.get('/faculty/materials'),
   uploadMaterial: (formData) => 
     api.post('/faculty/material', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -83,6 +85,8 @@ export const facultyAPI = {
 // Admin APIs
 export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard'),
+  getDepartments: () => api.get('/admin/departments'),
+  getSubjects: () => api.get('/admin/subjects'),
   getAllUsers: (role) => api.get(`/admin/users${role ? `?role=${role}` : ''}`),
   addStudent: (data) => api.post('/admin/student', data),
   removeStudent: (id) => api.delete(`/admin/student/${id}`),

@@ -17,7 +17,7 @@ const Attendance = () => {
   const loadAttendance = async () => {
     try {
       const response = await studentAPI.getDashboard();
-      setAttendance(response.data.data.attendance || []);
+      setAttendance(response.data.data?.attendance || []);
     } catch (error) {
       console.error('Failed to load attendance:', error);
     } finally {

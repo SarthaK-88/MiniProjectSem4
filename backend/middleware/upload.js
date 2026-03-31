@@ -4,7 +4,7 @@ const fs = require('fs');
 
 // Ensure uploads directory exists
 const uploadsDir = process.env.UPLOAD_PATH || './uploads';
-const subdirs = ['assignments', 'materials', 'profile-images', 'temp'];
+const subdirs = ['assignments', 'materials', 'profile-images', 'submissions', 'temp'];
 
 subdirs.forEach(subdir => {
   const dirPath = path.join(uploadsDir, subdir);
@@ -25,6 +25,8 @@ const storage = multer.diskStorage({
       uploadPath = path.join(uploadsDir, 'materials');
     } else if (file.fieldname === 'profileImage') {
       uploadPath = path.join(uploadsDir, 'profile-images');
+    } else if (file.fieldname === 'file') {
+      uploadPath = path.join(uploadsDir, 'submissions');
     } else {
       uploadPath = path.join(uploadsDir, 'temp');
     }

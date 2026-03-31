@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { facultyAPI } from '../../services/api';
 import axios from 'axios';
 
 const Assignments = () => {
@@ -38,12 +39,7 @@ const Assignments = () => {
 
   const loadAssignments = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/assignments', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await facultyAPI.getAssignments();
       setAssignments(response.data.data || []);
     } catch (error) {
       console.error('Failed to load assignments:', error);
@@ -82,11 +78,11 @@ const Assignments = () => {
       submitData.append('deadline', formData.deadline);
       submitData.append('total_marks', parseInt(formData.total_marks) || 0);
       if (selectedFile) {
-        submitData.append('file', selectedFile);
+        submitData.append('assignment', selectedFile);
       }
 
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/assignments', submitData, {
+      await axios.post('http://localhost:5000/api/faculty/assignment', submitData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -168,7 +164,7 @@ const Assignments = () => {
                       <td>{assignment.total_marks}</td>
                       <td>
                         <span className="badge badge-primary">
-                          {assignment.submissions} submitted
+                          {assignment.submission_count ?? 0} submitted
                         </span>
                       </td>
                       <td>

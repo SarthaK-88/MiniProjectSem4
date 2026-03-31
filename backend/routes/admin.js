@@ -10,6 +10,10 @@ router.use(authorizeRole('admin'));
 // Dashboard
 router.get('/dashboard', adminController.getDashboard);
 
+// List departments and subjects
+router.get('/departments', adminController.getDepartments);
+router.get('/subjects', adminController.getSubjects);
+
 // User Management
 router.get('/users', adminController.getAllUsers);
 router.post('/student', adminController.addStudent);

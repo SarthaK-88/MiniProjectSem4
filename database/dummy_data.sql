@@ -146,12 +146,12 @@ INSERT INTO messages (sender_id, receiver_id, message_text, message_type) VALUES
 (9, 3, 'Good morning Sir, when is the submission deadline?', 'text'),
 (3, 9, 'The deadline is next week Friday.', 'text');
 
--- Sample Study Materials
-INSERT INTO study_materials (subject_id, faculty_id, title, description, file_type) VALUES
-(1, 1, 'Introduction to Arrays', 'Basic concepts of arrays with examples', 'pdf'),
-(1, 1, 'Linked List Notes', 'Comprehensive notes on linked lists', 'pdf'),
-(2, 2, 'OOP Concepts', 'Four pillars of OOP explained', 'ppt'),
-(4, 1, 'SQL Basics', 'Introduction to SQL and database queries', 'pdf');
+-- Sample Study Materials (file_path required by schema)
+INSERT INTO study_materials (subject_id, faculty_id, title, description, file_path, file_type) VALUES
+(1, 1, 'Introduction to Arrays', 'Basic concepts of arrays with examples', '/uploads/materials/arrays-intro.pdf', 'pdf'),
+(1, 1, 'Linked List Notes', 'Comprehensive notes on linked lists', '/uploads/materials/linkedlist.pdf', 'pdf'),
+(2, 2, 'OOP Concepts', 'Four pillars of OOP explained', '/uploads/materials/oop.pptx', 'ppt'),
+(4, 1, 'SQL Basics', 'Introduction to SQL and database queries', '/uploads/materials/sql-basics.pdf', 'pdf');
 
 -- Sample Timetable (for CSE Semester 3)
 INSERT INTO timetable (department_id, semester, section, day_of_week, slot_number, start_time, end_time, subject_id, faculty_id, room_number, academic_year) VALUES
